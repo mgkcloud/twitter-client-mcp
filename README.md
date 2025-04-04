@@ -137,7 +137,7 @@ To add this MCP server to Cursor:
 You can also use npx to run the MCP server directly from GitHub:
 
 ```bash
-TWITTER_USERNAME=your_username TWITTER_PASSWORD=your_password TWITTER_EMAIL=your_email@example.com npx github:mzkrasner/twitter-client-mcp
+TWITTER_USERNAME=your_username TWITTER_PASSWORD=your_password TWITTER_EMAIL=your_email@example.com npx -y github:mzkrasner/twitter-client-mcp
 ```
 
 ### Using Environment Variables in Cursor Configuration
@@ -150,6 +150,7 @@ For more security and ease of use, configure Cursor via the `.cursor/mcp.json` f
     "twitter-client-mcp": {
       "command": "npx",
       "args": [
+        "-y",
         "github:mzkrasner/twitter-client-mcp"
       ],
       "env": {
