@@ -42,7 +42,9 @@ export class TwitterIntegration {
       this.scraper = new Scraper();
       
       // Get credentials securely
+      logger.info('Retrieving Twitter credentials...');
       const credentials = getCredentials();
+      logger.info(`Retrieved credentials for user: ${credentials.username}`);
       
       // Log in with credentials
       logger.info('Logging in to Twitter...');

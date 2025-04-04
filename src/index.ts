@@ -10,7 +10,7 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import { TwitterIntegration } from "./twitter-integration.js";
 import { twitterTools } from "./tools/index.js";
-import { logger } from "./config.js";
+import { logger, validateEnv } from "./config.js";
 import { SearchMode } from "agent-twitter-client";
 
 // Create the MCP server
@@ -495,6 +495,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 // Initialize and run the server
 async function runServer() {
   try {
+    
+    // Validate environment variables
+    logger.info("Validating environment variables...");
+    validateEnv();
     
     // Initialize Twitter integration
     logger.info("Initializing Twitter integration...");
