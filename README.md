@@ -32,10 +32,9 @@ The Twitter Client MCP provides the following capabilities:
 
 This MCP server requires Twitter credentials to operate. To protect these sensitive credentials:
 
-1. **NEVER share your .env file or credentials**
+1. **NEVER share your credentials**
 2. **NEVER run commands that display your credentials**
 3. **NEVER allow the LLM to execute shell commands directly** without your approval
-4. Always store the .env file with restricted permissions: `chmod 600 .env`
 
 ### Multiple Layers of Protection
 
@@ -63,28 +62,29 @@ This server implements several layers of security to keep your credentials safe:
    ```bash
    npm install
    ```
-3. Configure your environment:
-   1. Copy the example environment file:
-      ```bash
-      cp .env.example .env
-      ```
-   2. Secure the file:
-      ```bash
-      chmod 600 .env
-      ```
-   3. Edit the `.env` file with your Twitter credentials:
-      ```
-      TWITTER_USERNAME=your_username
-      TWITTER_PASSWORD=your_password
-      TWITTER_EMAIL=your_email@example.com
-      ```
-   4. Optionally add Twitter API v2 credentials if you need advanced functionality:
-      ```
-      TWITTER_API_KEY=your_api_key
-      TWITTER_API_SECRET_KEY=your_api_secret
-      TWITTER_ACCESS_TOKEN=your_access_token
-      TWITTER_ACCESS_TOKEN_SECRET=your_access_secret
-      ```
+3. Build the project:
+   ```bash
+   npm run build
+   ```
+
+## Required Environment Variables
+
+The Twitter Client MCP requires the following environment variables:
+
+```
+TWITTER_USERNAME=your_username
+TWITTER_PASSWORD=your_password
+TWITTER_EMAIL=your_email@example.com
+```
+
+Optionally, you can add Twitter API v2 credentials for advanced functionality:
+
+```
+TWITTER_API_KEY=your_api_key
+TWITTER_API_SECRET_KEY=your_api_secret
+TWITTER_ACCESS_TOKEN=your_access_token
+TWITTER_ACCESS_TOKEN_SECRET=your_access_secret
+```
 
 ## Tools
 
@@ -107,24 +107,20 @@ The server exposes the following MCP tools:
 
 ## Usage
 
-### Building and Running
+### Running Locally
 
 ```bash
-# Build the project
-npm run build
-
-# Start the server
-npm start
+# Start the server with environment variables
+TWITTER_USERNAME=your_username TWITTER_PASSWORD=your_password TWITTER_EMAIL=your_email@example.com npm start
 ```
 
 ### Adding to Cursor
 
 To add this MCP server to Cursor:
 
-1. Build the project first with `npm run build`
-2. In Cursor, go to Settings > MCP Servers
-3. Click "Add Server"
-4. Configure the server with the following settings:
+1. In Cursor, go to Settings > MCP Servers
+2. Click "Add Server"
+3. Configure the server with the following settings:
    - **Name**: `Twitter Client MCP` (or any name you prefer)
    - **Type**: `command`
    - **Command**: `node`
@@ -134,19 +130,27 @@ To add this MCP server to Cursor:
      - `TWITTER_PASSWORD`: Your Twitter password
      - `TWITTER_EMAIL`: Your Twitter email
      - Any other variables you want to set
-5. Click "Save"
+4. Click "Save"
+
+### Using NPX (Recommended)
+
+You can also use npx to run the MCP server directly from GitHub:
+
+```bash
+TWITTER_USERNAME=your_username TWITTER_PASSWORD=your_password TWITTER_EMAIL=your_email@example.com npx github:mzkrasner/twitter-client-mcp
+```
 
 ### Using Environment Variables in Cursor Configuration
 
-For more security, you can configure Cursor via the `.cursor/mcp.json` file in your home directory:
+For more security and ease of use, configure Cursor via the `.cursor/mcp.json` file in your home directory:
 
 ```json
 {
   "mcpServers": {
     "twitter-client-mcp": {
-      "command": "node",
+      "command": "npx",
       "args": [
-        "/Users/yourusername/twitter-client-mcp/dist/index.js"
+        "github:mzkrasner/twitter-client-mcp"
       ],
       "env": {
         "TWITTER_USERNAME": "your_username",
@@ -157,8 +161,6 @@ For more security, you can configure Cursor via the `.cursor/mcp.json` file in y
   }
 }
 ```
-
-This approach eliminates the need for a .env file.
 
 ## Development
 
