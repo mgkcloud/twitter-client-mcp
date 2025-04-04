@@ -4,9 +4,7 @@
   "description": "A Model Context Protocol (MCP) server for secure Twitter client integration",
   "main": "dist/index.js",
   "type": "module",
-  "bin": {
-    "twitter-client-mcp": "./dist/index.js"
-  },
+  "bin": "./dist/index.js",
   "scripts": {
     "build": "tsc",
     "prepare": "npm run build",
