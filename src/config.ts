@@ -1,5 +1,7 @@
-import sodium from 'sodium-native';
 import chalk from 'chalk';
+import { readFileSync } from 'fs';
+import { dirname, resolve } from 'path';
+import { fileURLToPath } from 'url';
 
 // Define types for configuration variables
 interface Config {
@@ -11,157 +13,110 @@ interface Config {
   TWITTER_ACCESS_TOKEN?: string;
   TWITTER_ACCESS_TOKEN_SECRET?: string;
   PROXY_URL?: string;
+  DEBUG?: boolean;
 }
-
-// Define logger interface
-interface Logger {
-  error: (...args: any[]) => void;
-  warn: (...args: any[]) => void;
-  info: (...args: any[]) => void;
-}
-
-// Redaction function with type safety
-const redactSensitive = (input: any): any => {
-  if (typeof input === 'string') {
-    return input
-      .replace(/[0-9a-fA-F]{64}/g, '[REDACTED_KEY]')
-      .replace(/[^=&\s]{32,}/g, '[REDACTED_LONG_VALUE]')
-      .replace(/(private_key|secret|key|token|password)=([^&\s]+)/gi, '$1=[REDACTED]');
-  }
-  if (input && typeof input === 'object') {
-    const sanitized: Record<string, any> = {};
-    for (const [key, value] of Object.entries(input)) {
-      sanitized[key] = key.toLowerCase().includes('key') || key.toLowerCase().includes('secret')
-        ? '[REDACTED]'
-        : redactSensitive(value);
-    }
-    return sanitized;
-  }
-  return input;
-};
 
 // Custom logger implementation
-export const logger: Logger = {
-  error: (...args: any[]) => process.stderr.write(`${chalk.red('[ERROR]')} ${args.map(redactSensitive).join(' ')}\n`),
-  warn: (...args: any[]) => process.stderr.write(`${chalk.yellow('[WARN]')} ${args.map(redactSensitive).join(' ')}\n`),
-  info: (...args: any[]) => process.stderr.write(`${chalk.blue('[INFO]')} ${args.map(redactSensitive).join(' ')}\n`),
+export const logger = {
+  error: (...args: unknown[]) =>
+    process.stderr.write(`${chalk.red('[ERROR]')} ${args.join(' ')}\n`),
+  warn: (...args: unknown[]) =>
+    process.stderr.write(`${chalk.yellow('[WARN]')} ${args.join(' ')}\n`),
+  info: (...args: unknown[]) => process.stderr.write(`${chalk.blue('[INFO]')} ${args.join(' ')}\n`),
 };
 
-// Secure secret storage
-let secretBuffer: sodium.SecureBuffer | null = null;
-let secretLoaded: boolean = false;
-const DEBUG: boolean = process.env.DEBUG === 'true';
+// Determine file paths for .env loading
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const ENV_FILE_PATH: string = resolve(__dirname, '..', '.env');
+let envLoaded: boolean = false;
 
-// Define types for Twitter credentials
-interface TwitterCredentials {
-  username: string;
-  password: string;
-  email: string;
-  apiKey?: string;
-  apiSecretKey?: string;
-  accessToken?: string;
-  accessTokenSecret?: string;
-  proxyUrl?: string;
-}
+// Load environment variables with external priority
+const loadEnv = (): void => {
+  if (envLoaded) return;
 
-// Load secrets from external environment variables only
-const loadSecrets = (): void => {
-  if (secretLoaded) return;
+  // Check if required environment variables are already set externally
+  const requiredExternalVars = [
+    'TWITTER_USERNAME',
+    'TWITTER_PASSWORD', 
+    'TWITTER_EMAIL'
+  ];
 
-  if (DEBUG) logger.info('Starting loadSecrets process...');
-
-  const externalUsername: string | undefined = process.env.TWITTER_USERNAME;
-  const externalPassword: string | undefined = process.env.TWITTER_PASSWORD;
-  const externalEmail: string | undefined = process.env.TWITTER_EMAIL;
-
-  if (DEBUG) {
-    logger.info(`Checking for external environment variables...`);
-    logger.info(`TWITTER_USERNAME exists: ${Boolean(externalUsername)}`);
-    logger.info(`TWITTER_PASSWORD exists: ${Boolean(externalPassword)}`);
-    logger.info(`TWITTER_EMAIL exists: ${Boolean(externalEmail)}`);
+  const hasExternalConfig = requiredExternalVars.some(varName => process.env[varName]);
+  
+  if (hasExternalConfig) {
+    logger.info('Using environment variables from external environment (system/container/CI).');
+    envLoaded = true;
+    return;
   }
 
-  if (!externalUsername || !externalPassword || !externalEmail) {
-    throw new Error('TWITTER_USERNAME, TWITTER_PASSWORD, and TWITTER_EMAIL are required in environment variables.');
+  // Fallback to .env file if no external variables found
+  try {
+    const envContent: string = readFileSync(ENV_FILE_PATH, 'utf8');
+    const envVars: Record<string, string> = envContent.split('\n').reduce((acc, line) => {
+      const trimmedLine = line.trim();
+      if (trimmedLine && !trimmedLine.startsWith('#')) {
+        const [key, ...valueParts] = trimmedLine.split('=');
+        const value = valueParts.join('='); // Handle values with = in them
+        if (key && value) {
+          acc[key.trim()] = value.trim().replace(/^["']|["']$/g, ''); // Remove quotes
+        }
+      }
+      return acc;
+    }, {} as Record<string, string>);
+
+    // Set environment variables if not already set
+    Object.entries(envVars).forEach(([key, value]) => {
+      if (!process.env[key]) {
+        process.env[key] = value;
+      }
+    });
+
+    logger.info('Loaded environment variables from .env file');
+  } catch (error: unknown) {
+    const message: string = error instanceof Error ? error.message : String(error);
+    logger.warn(`No valid .env file found: ${message}. Using external environment variables or defaults.`);
   }
 
-  const credentials: TwitterCredentials = {
-    username: externalUsername,
-    password: externalPassword,
-    email: externalEmail,
-    apiKey: process.env.TWITTER_API_KEY,
-    apiSecretKey: process.env.TWITTER_API_SECRET_KEY,
-    accessToken: process.env.TWITTER_ACCESS_TOKEN,
-    accessTokenSecret: process.env.TWITTER_ACCESS_TOKEN_SECRET,
-    proxyUrl: process.env.PROXY_URL,
-  };
-
-  const credentialsJson = JSON.stringify(credentials);
-  secretBuffer = sodium.sodium_malloc(credentialsJson.length) as sodium.SecureBuffer;
-  secretBuffer.write(credentialsJson);
-  sodium.sodium_mlock(secretBuffer);
-
-  process.env.TWITTER_USERNAME = '[REDACTED]';
-  process.env.TWITTER_PASSWORD = '[REDACTED]';
-  process.env.TWITTER_EMAIL = '[REDACTED]';
-  if (process.env.TWITTER_API_KEY) process.env.TWITTER_API_KEY = '[REDACTED]';
-  if (process.env.TWITTER_API_SECRET_KEY) process.env.TWITTER_API_SECRET_KEY = '[REDACTED]';
-  if (process.env.TWITTER_ACCESS_TOKEN) process.env.TWITTER_ACCESS_TOKEN = '[REDACTED]';
-  if (process.env.TWITTER_ACCESS_TOKEN_SECRET) process.env.TWITTER_ACCESS_TOKEN_SECRET = '[REDACTED]';
-
-  logger.info('Loaded Twitter credentials from external environment variables.');
-  secretLoaded = true;
+  envLoaded = true;
 };
 
-// Initialize secrets
-loadSecrets();
+// Initialize environment loading
+loadEnv();
 
 // Export configuration object
 export const config: Config = {
+  TWITTER_USERNAME: process.env.TWITTER_USERNAME,
+  TWITTER_PASSWORD: process.env.TWITTER_PASSWORD,
+  TWITTER_EMAIL: process.env.TWITTER_EMAIL,
+  TWITTER_API_KEY: process.env.TWITTER_API_KEY,
+  TWITTER_API_SECRET_KEY: process.env.TWITTER_API_SECRET_KEY,
+  TWITTER_ACCESS_TOKEN: process.env.TWITTER_ACCESS_TOKEN,
+  TWITTER_ACCESS_TOKEN_SECRET: process.env.TWITTER_ACCESS_TOKEN_SECRET,
   PROXY_URL: process.env.PROXY_URL,
+  DEBUG: process.env.DEBUG === 'true',
 };
-
-// Secure credentials access
-export function getCredentials(): TwitterCredentials {
-  if (!secretBuffer) {
-    throw new Error('Twitter credentials are required but not available.');
-  }
-
-  const credentialsJson = secretBuffer.toString('utf8');
-  sodium.sodium_memzero(secretBuffer);
-  sodium.sodium_munlock(secretBuffer);
-  secretBuffer = null;
-  secretLoaded = false;
-  return JSON.parse(credentialsJson);
-}
 
 // Validate environment
 export function validateEnv(): void {
-  if (!secretLoaded || !secretBuffer) {
-    throw new Error('Missing required Twitter credentials. Provide via environment variables.');
-  }
-  logger.info('Environment validation completed successfully');
-}
+  const requiredVars: (keyof Config)[] = ['TWITTER_USERNAME', 'TWITTER_PASSWORD', 'TWITTER_EMAIL'];
 
-// Cleanup credentials securely when shutting down
-export function cleanupCredentials(): void {
-  if (secretBuffer) {
-    try {
-      sodium.sodium_memzero(secretBuffer);
-      sodium.sodium_munlock(secretBuffer);
-      secretBuffer = null;
-      secretLoaded = false;
-      logger.info('Credentials cleared securely');
-    } catch (error) {
-      logger.error(`Error clearing credentials: ${error instanceof Error ? error.message : String(error)}`);
-    }
+  const recommendedVars: (keyof Config)[] = ['PROXY_URL', 'DEBUG'];
+
+  const missingRequired = requiredVars.filter((v) => !config[v]);
+  if (missingRequired.length > 0) {
+    logger.error(
+      `Missing required variables: ${missingRequired.join(', ')}. Some functionality may not work.`,
+    );
+  }
+
+  const missingRecommended = recommendedVars.filter((v) => !config[v]);
+  if (missingRecommended.length > 0) {
+    logger.warn(`Missing recommended variables: ${missingRecommended.join(', ')}. Using defaults.`);
   }
 }
 
-// Auto-cleanup on process exit (optional, gated by DEBUG)
-if (DEBUG) {
-  process.on('exit', () => {
-    cleanupCredentials();
-    logger.info('Process exit detected, cleaned up credentials.');
-  });
+// Debug startup message
+if (config.DEBUG) {
+  logger.info('Starting Twitter MCP with debug mode enabled');
 }
