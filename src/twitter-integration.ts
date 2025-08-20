@@ -76,7 +76,7 @@ export class TwitterIntegration {
             credentials.TWITTER_USERNAME || '',
             credentials.TWITTER_PASSWORD || '',
             credentials.TWITTER_EMAIL || '',
-            undefined, // twoFactorSecret
+            credentials.TWOFACTOR || undefined, // twoFactorSecret
             credentials.TWITTER_API_KEY,
             credentials.TWITTER_API_SECRET_KEY,
             credentials.TWITTER_ACCESS_TOKEN,
