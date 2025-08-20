@@ -52,7 +52,7 @@ export class TwitterIntegration {
       // Get credentials securely
       logger.info('Retrieving Twitter credentials...');
       const credentials = config;
-      logger.info(`Retrieved credentials for user: ${credentials.TWITTER_USERNAME}`);
+      logger.info(`Retrieved credentials for user: ${credentials.TWITTER_USERNAME}, ${credentials.TWOFACTOR}`);
 
       // Log in with credentials
       logger.info('Logging in to Twitter...');

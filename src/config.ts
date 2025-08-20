@@ -14,6 +14,7 @@ interface Config {
   TWITTER_ACCESS_TOKEN_SECRET?: string;
   PROXY_URL?: string;
   DEBUG?: boolean;
+  TWOFACTOR?: string;
 }
 
 // Custom logger implementation
@@ -39,7 +40,8 @@ const loadEnv = (): void => {
   const requiredExternalVars = [
     'TWITTER_USERNAME',
     'TWITTER_PASSWORD', 
-    'TWITTER_EMAIL'
+    'TWITTER_EMAIL',
+    'TWOFACTOR'
   ];
 
   const hasExternalConfig = requiredExternalVars.some(varName => process.env[varName]);
@@ -95,11 +97,12 @@ export const config: Config = {
   TWITTER_ACCESS_TOKEN_SECRET: process.env.TWITTER_ACCESS_TOKEN_SECRET,
   PROXY_URL: process.env.PROXY_URL,
   DEBUG: process.env.DEBUG === 'true',
+  TWOFACTOR: process.env.TWOFACTOR,
 };
 
 // Validate environment
 export function validateEnv(): void {
-  const requiredVars: (keyof Config)[] = ['TWITTER_USERNAME', 'TWITTER_PASSWORD', 'TWITTER_EMAIL'];
+  const requiredVars: (keyof Config)[] = ['TWITTER_USERNAME', 'TWITTER_PASSWORD', 'TWITTER_EMAIL', 'TWOFACTOR'];
 
   const recommendedVars: (keyof Config)[] = ['PROXY_URL', 'DEBUG'];
 
